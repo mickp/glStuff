@@ -112,7 +112,10 @@ class GLPlotWidget(QGLWidget):
         # compile the vertex shader
         self.shaders_program = link_shader_program(vs, fs)
         self.currentTime = (gl.glGetUniformLocation(self.shaders_program, 'currentTime'), 0.0)
-
+        self.timer = QtCore.QTimer(self)
+        self.timer.timeout.connect(self.update)
+        self.timer.start(10)
+    
 
     def paintGL(self):
         """Paint the scene."""
