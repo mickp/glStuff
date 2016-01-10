@@ -193,8 +193,8 @@ class GLPlotWidget(QGLWidget):
             gx = (2 * wx / self.width - 1) * (aspect/zoom) + offset[0]
             gy = -(2 * wy / self.height - 1) * (1.0/zoom) + offset[1]
             self.uCenter.update((gx, gy))
-        else:
-            # Zoom and offset.
+        elif event.button() == 1:
+            # Zoom and offset, only on left button.
             wx0 = self.lastClickPos.x()
             wy0 = self.lastClickPos.y()
             wx1 = event.posF().x()
