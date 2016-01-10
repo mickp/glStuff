@@ -177,20 +177,48 @@ class GLPlotWidget(QGLWidget):
         self.uMaxIterations = Uniform(gl.glUniform1ui,
                                       self.shaders_program,
                                       'maxIterations',
-                                      128)
+                                      256)
+        gl.glPointSize(1.0)
 
     def keyPressEvent(self, event):
         key = event.key()
         handled = True
-        if key in (QtCore.Qt.Key_Up, QtCore.Qt.Key_Plus):
-            maxIter = min(16384, self.uMaxIterations.value * 2)
+        if key in (QtCore.Qt.Key_Plus,):
+            if self.uMaxIterations.value < 4096:
+                maxIter = self.uMaxIterations.value * 2
+            else:
+                maxIter = min(32768, self.uMaxIterations.value + 1024)
             self.uMaxIterations.update(maxIter)
-        elif key in (QtCore.Qt.Key_Down, QtCore.Qt.Key_Minus):
-            maxIter = max(2, self.uMaxIterations.value / 2)
+        elif key in (QtCore.Qt.Key_Minus,):
+            if self.uMaxIterations.value < 4096:
+                maxIter = max(2, self.uMaxIterations.value / 2)
+            else:
+                maxIter = self.uMaxIterations.value - 1024
             self.uMaxIterations.update(maxIter)
         elif key in (QtCore.Qt.Key_Home,):
             self.uZoom.update(1/2.)
             self.uCenter.update((-0.5,0))
+        elif key in (QtCore.Qt.Key_End,):
+            self.uZoom.update(75000)
+            self.uCenter.update((-1.41421, 0))
+        elif key in (QtCore.Qt.Key_PageUp,):
+            self.uZoom.update(self.uZoom.value / 2)
+        elif key in (QtCore.Qt.Key_PageDown,):
+            self.uZoom.update(self.uZoom.value * 2)
+        elif key in (QtCore.Qt.Key_Insert,):
+            self.uZoom.update(self.uZoom.value * 0.99)
+        elif key in (QtCore.Qt.Key_Delete,):
+            self.uZoom.update(self.uZoom.value * 1.01)
+        elif key in (QtCore.Qt.Key_Up, QtCore.Qt.Key_Down,):
+            sign = (-1, 1)[key == QtCore.Qt.Key_Up]
+            delta = sign * 0.5 / self.uZoom.value
+            gx, gy = self.uCenter.value
+            self.uCenter.update((gx, gy+delta))
+        elif key in (QtCore.Qt.Key_Left, QtCore.Qt.Key_Right,):
+            sign = (-1, 1)[key == QtCore.Qt.Key_Left]
+            delta = sign * 0.5 / self.uZoom.value
+            gx, gy = self.uCenter.value
+            self.uCenter.update((gx+delta, gy))
         else:
             handled = False
 
