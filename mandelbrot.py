@@ -188,6 +188,9 @@ class GLPlotWidget(QGLWidget):
         elif key in (QtCore.Qt.Key_Down, QtCore.Qt.Key_Minus):
             maxIter = max(2, self.uMaxIterations.value / 2)
             self.uMaxIterations.update(maxIter)
+        elif key in (QtCore.Qt.Key_Home,):
+            self.uZoom.update(1/2.)
+            self.uCenter.update((-0.5,0))
         else:
             handled = False
 
