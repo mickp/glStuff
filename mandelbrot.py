@@ -46,7 +46,7 @@ def link_shader_program(vertex_shader, fragment_shader):
 # Vertex shader
 VS = """
 #version 330
-attribute vec2 position; 
+attribute vec2 position;
 out vec2 pos;
 
 void main(){
@@ -97,7 +97,7 @@ void main()
         color = vec3(0.1, 0.1, 0.1);
     else
         color = mix(outerColor1, outerColor2, fract(float(iter)*0.05));
-    gl_FragColor = vec4 (clamp(color, 0.0, 1.0), 1.0); 
+    gl_FragColor = vec4 (clamp(color, 0.0, 1.0), 1.0);
 }
 """
 
@@ -201,7 +201,7 @@ class GLPlotWidget(QGLWidget):
             wy1 = event.posF().y()
             wxAvg = 0.5 * (wx0 + wx1)
             wyAvg = 0.5 * (wy0 + wy1)
-            fraction = max(abs(wy1 - wy0) / self.height, 
+            fraction = max(abs(wy1 - wy0) / self.height,
                            aspect * abs(wx1 - wx0) / self.width)
             newZoom = zoom / fraction
             gx = (2 * wxAvg / self.width - 1) * (aspect/zoom) + offset[0]
@@ -253,7 +253,7 @@ class GLPlotWidget(QGLWidget):
 if __name__ == '__main__':
     # import numpy for generating random data points
     import sys
-    import numpy as np 
+    import numpy as np
 
     # define a Qt window with an OpenGL widget inside it
     class TestWindow(QtGui.QMainWindow):
