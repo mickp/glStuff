@@ -64,6 +64,7 @@ FS = """
 varying vec2 pos;
 uniform vec2 center;
 uniform float zoom;
+uniform float aspect;
 
 // Main fragment shader function.
 void main()
@@ -75,7 +76,7 @@ void main()
     // vec2 center = vec2(0., 0.);
     // float zoom = 2;
 
-    float real = position[0] * (1.0/zoom) + center.x;
+    float real = position[0] * (aspect/zoom) + center.x;
     float imag = position[1] * (1.0/zoom) + center.y;
     float cReal = real;
     float cImag = imag;
@@ -105,6 +106,7 @@ class Uniform(object):
         self.setter = glSetFunc
         self.location = gl.glGetUniformLocation(program, name)
         self.value = default
+        self.update()
 
 
     def update(self, value=None):
@@ -160,13 +162,15 @@ class GLPlotWidget(QGLWidget):
                              self.shaders_program,
                              'zoom',
                               1/2.5)
-        self.uZoom.update()
         self.uCenter = Uniform(gl.glUniform2f, 
                                self.shaders_program,
                                'center',
                                (0, 0))
-        self.uCenter.update()
-        
+        self.uAspect = Uniform(gl.glUniform1f, 
+                               self.shaders_program,
+                               'aspect', 
+                               float(self.width) / self.height)
+
 
     def mousePressEvent(self, event):
         self.lastClickPos = event.pos()
@@ -176,6 +180,7 @@ class GLPlotWidget(QGLWidget):
         # Current zoom and offset
         zoom = self.uZoom.value
         offset = self.uCenter.value
+        aspect = float(self.width) / float(self.height)
         if self.lastClickPos == event.pos():
             # Offset and optional zoom out.
             if event.button() == 2:
@@ -185,7 +190,7 @@ class GLPlotWidget(QGLWidget):
             wx = event.posF().x()
             wy = event.posF().y()
             # GL-space co-ordinates
-            gx = (2 * wx / self.width - 1) * (1.0/zoom) + offset[0]
+            gx = (2 * wx / self.width - 1) * (aspect/zoom) + offset[0]
             gy = -(2 * wy / self.height - 1) * (1.0/zoom) + offset[1]
             self.uCenter.update((gx, gy))
         else:
@@ -197,9 +202,9 @@ class GLPlotWidget(QGLWidget):
             wxAvg = 0.5 * (wx0 + wx1)
             wyAvg = 0.5 * (wy0 + wy1)
             fraction = max(abs(wy1 - wy0) / self.height, 
-                        abs(wx1 - wx0) / self.width)
+                           aspect * abs(wx1 - wx0) / self.width)
             newZoom = zoom / fraction
-            gx = (2 * wxAvg / self.width - 1) * (1.0/zoom) + offset[0]
+            gx = (2 * wxAvg / self.width - 1) * (aspect/zoom) + offset[0]
             gy = -(2 * wyAvg / self.height - 1) * (1.0/zoom) + offset[1]
             self.uCenter.update((gx, gy))
             self.uZoom.update(newZoom)
@@ -231,6 +236,7 @@ class GLPlotWidget(QGLWidget):
         """
         # update the window size
         self.width, self.height = width, height
+        self.uAspect.update(float(width) / float(height))
         # update the data points
         self.makeData()
         if self.vbo:
