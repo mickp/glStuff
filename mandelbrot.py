@@ -59,8 +59,7 @@ void main(){
 # Fragment shader
 FS = """
 #version 330
-// Output variable of the fragment shader, which is a 4D vector containing the
-// RGBA components of the pixel color.
+#extension ARB_gpu_shader_fp64 : require
 varying vec2 pos;
 uniform vec2 center;
 uniform float zoom;
@@ -70,21 +69,21 @@ uniform uint maxIterations;
 // Main fragment shader function.
 void main()
 {
-    vec2 position = pos;
+    dvec2 position = pos;
     vec3 outerColor1 = vec3(1., 0., 1.);
     vec3 outerColor2 = vec3(0., 1., 1.);
 
-    float real = position[0] * (aspect/zoom) + center.x;
-    float imag = position[1] * (1.0/zoom) + center.y;
-    float cReal = real;
-    float cImag = imag;
+    double real = position[0] * (aspect/zoom) + center.x;
+    double imag = position[1] * (1.0/zoom) + center.y;
+    double cReal = real;
+    double cImag = imag;
 
-    float r2 = 0.0;
+    double r2 = 0.0;
     int iter;
 
     for (iter = 0; iter < maxIterations && r2 < 4.0; ++iter)
     {
-        float tempreal = real;
+        double tempreal = real;
         real = (tempreal * tempreal) - (imag * imag) + cReal;
         imag = 2.0 * tempreal * imag + cImag;
         r2 = real * real;
