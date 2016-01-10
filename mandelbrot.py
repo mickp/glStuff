@@ -254,6 +254,9 @@ class GLPlotWidget(QGLWidget):
         gl.glUseProgram(self.shaders_program)
         # draw "count" points from the VBO
         gl.glDrawArrays(gl.GL_POINTS, 0, self.count)
+        # Update the window title.
+        self.parent().setWindowTitle("offset %s; zoom: %f" %
+                             (self.uCenter.value, self.uZoom.value))
 
 
     def resizeGL(self, width, height):
