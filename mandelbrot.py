@@ -65,16 +65,14 @@ varying vec2 pos;
 uniform vec2 center;
 uniform float zoom;
 uniform float aspect;
+uniform uint maxIterations;
 
 // Main fragment shader function.
 void main()
 {
     vec2 position = pos;
-    int maxIterations = 128;
     vec3 outerColor1 = vec3(1., 0., 1.);
     vec3 outerColor2 = vec3(0., 1., 1.);
-    // vec2 center = vec2(0., 0.);
-    // float zoom = 2;
 
     float real = position[0] * (aspect/zoom) + center.x;
     float imag = position[1] * (1.0/zoom) + center.y;
@@ -125,6 +123,12 @@ class GLPlotWidget(QGLWidget):
     data = None
     vbo = None
 
+
+    def __init__(self):
+        QGLWidget.__init__(self)
+        self.setFocusPolicy(QtCore.Qt.StrongFocus)
+
+
     def makeData(self):
         w = self.width
         h = self.height
@@ -158,23 +162,44 @@ class GLPlotWidget(QGLWidget):
         # Bind the program so we can set initial parameters.
         gl.glUseProgram(self.shaders_program)
         # View parameters.
-        self.uZoom = Uniform(gl.glUniform1f, 
+        self.uZoom = Uniform(gl.glUniform1f,
                              self.shaders_program,
                              'zoom',
                               1/2.5)
-        self.uCenter = Uniform(gl.glUniform2f, 
+        self.uCenter = Uniform(gl.glUniform2f,
                                self.shaders_program,
                                'center',
                                (0, 0))
-        self.uAspect = Uniform(gl.glUniform1f, 
+        self.uAspect = Uniform(gl.glUniform1f,
                                self.shaders_program,
-                               'aspect', 
+                               'aspect',
                                float(self.width) / self.height)
+        self.uMaxIterations = Uniform(gl.glUniform1ui,
+                                      self.shaders_program,
+                                      'maxIterations',
+                                      128)
+
+    def keyPressEvent(self, event):
+        key = event.key()
+        handled = True
+        if key in (QtCore.Qt.Key_Up, QtCore.Qt.Key_Plus):
+            maxIter = min(16384, self.uMaxIterations.value * 2)
+            self.uMaxIterations.update(maxIter)
+        elif key in (QtCore.Qt.Key_Down, QtCore.Qt.Key_Minus):
+            maxIter = max(2, self.uMaxIterations.value / 2)
+            self.uMaxIterations.update(maxIter)
+        else:
+            handled = False
+
+        if handled:
+            self.updateGL()
+        else:
+            event.ignore()
 
 
     def mousePressEvent(self, event):
         self.lastClickPos = event.pos()
-        
+
 
     def mouseReleaseEvent(self, event):
         # Current zoom and offset
