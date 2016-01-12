@@ -61,7 +61,7 @@ FS = """
 #version 330
 #extension ARB_gpu_shader_fp64 : require
 varying vec2 pos;
-uniform vec2 center;
+uniform dvec2 center;
 uniform float zoom;
 uniform float aspect;
 uniform uint maxIterations;
@@ -165,7 +165,7 @@ class GLPlotWidget(QGLWidget):
                              self.shaders_program,
                              'zoom',
                               1/2.5)
-        self.uCenter = Uniform(gl.glUniform2f,
+        self.uCenter = Uniform(gl.glUniform2d,
                                self.shaders_program,
                                'center',
                                (0, 0))
