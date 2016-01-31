@@ -41,7 +41,7 @@ def link_shaders(*shaders):
 VERTEX = """
 #version 330
 attribute vec4 attr;
-out float fs_charge;
+flat out float fs_charge;
 
 void main(){
     vec2 position = vec2(attr[0], attr[1]);
