@@ -6,9 +6,6 @@ import OpenGL.GL as gl
 import OpenGL.arrays.vbo as glvbo
 import ctypes
 import struct
-MAX_WORKGROUPS = 65535
-ITER_PER_CYCLE=128
-
 DT = 0.0001
 DAMPING = 0.01
 NUM_PARTICLES = 4096
