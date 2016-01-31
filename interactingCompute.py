@@ -80,7 +80,7 @@ layout( std430, binding=1 ) buffer Velocities {
     vec2 velocities[%d];
 };
 
-uniform int N;
+uniform uint N;
 uniform float dt;
 uniform float damping;
 
@@ -128,9 +128,9 @@ void main() {
     vec2 v = velocities[ globalId ];
 
     // iterate over all particles to evaluate net force
-    int i;
+    uint i;
     vec2 force = vec2(0, 0);
-    for (i = 0; i < N; i++){
+    for (i = uint(0); i < N; i++){
             if (i == globalId){
             continue;
         }
@@ -223,7 +223,7 @@ class GLPlotWidget(QGLWidget):
         gl.glBindBufferBase(gl.GL_SHADER_STORAGE_BUFFER, 0, self.vbo)
         gl.glBindBufferBase(gl.GL_SHADER_STORAGE_BUFFER, 1, self.ssbo)
         loc = gl.glGetUniformLocation(self.compute_program, 'N')
-        gl.glUniform1i(loc, self.count)
+        gl.glUniform1ui(loc, self.count)
         loc = gl.glGetUniformLocation(self.compute_program, 'dt')
         gl.glUniform1f(loc, DT)
         loc = gl.glGetUniformLocation(self.compute_program, 'damping')
