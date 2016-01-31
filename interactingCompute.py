@@ -38,17 +38,65 @@ def link_shaders(*shaders):
 VERTEX = """
 #version 330
 attribute vec4 attr;
-flat out float fs_charge;
+flat out float gs_charge;
+flat out float gs_mass;
 
 void main(){
     vec2 position = vec2(attr[0], attr[1]);
     float charge = attr[2];
     float mass = attr[3];
-    gl_PointSize = 5 * (log(mass) + 2);
     gl_Position = vec4(2*position-1, 0.5, 1.0);
-    fs_charge = charge;
+    gs_charge = charge;
+    gs_mass = mass;
 }
 """
+
+# Geometry shader
+GEOMETRY = """
+#version 330
+#define CIRCLE_SECTIONS 12
+#define VERTICES 36
+#define PI 3.1415926
+
+layout (points) in;
+flat in float gs_charge[];
+flat in float gs_mass[];
+layout (triangle_strip, max_vertices=VERTICES) out;
+flat out float fs_charge;
+uniform float aspect;
+
+void main(){
+    fs_charge = gs_charge[0];
+    float r =  0.005 * (log(gs_mass) + 2);
+    // Central vertex
+    vec4 centre = gl_in[0].gl_Position;
+
+    for (int i=1; i<=CIRCLE_SECTIONS+1; i++) {
+        vec4 last_offset;
+        // Angle between each side in radians
+        float ang = PI * 2.0 / float(CIRCLE_SECTIONS) * i;
+
+        // Offset from center
+        vec4 offset = vec4(cos(ang) * r, -sin(ang) * r * aspect, 0.0, 0.0);
+        if (i > 1) {
+            gl_Position = centre;
+            EmitVertex();
+            gl_Position = gl_in[0].gl_Position + last_offset;
+            EmitVertex();
+            gl_Position = gl_in[0].gl_Position + offset;
+            EmitVertex();
+        }
+        last_offset = offset;
+    }
+    EndPrimitive();
+
+    gl_Position = gl_in[0].gl_Position + vec4(0.1, 0.0, 0.0, 0.0);
+    EmitVertex();
+    EndPrimitive();
+}
+
+"""
+
 
 # Fragment shader
 FRAGMENT = """
@@ -188,10 +236,12 @@ class GLPlotWidget(QGLWidget):
         # Make initial data array.
         # compile the vertex shader
         vs = compile_shader(VERTEX, gl.GL_VERTEX_SHADER)
+        # compile the geometry shader
+        gs = compile_shader(GEOMETRY, gl.GL_GEOMETRY_SHADER)
         # compile the fragment shader
         fs = compile_shader(FRAGMENT, gl.GL_FRAGMENT_SHADER)
         # Link the programs.
-        self.render_program = link_shaders(vs, fs)
+        self.render_program = link_shaders(vs, gs, fs)
         # Compile the compute shader
         cs = compile_shader(COMPUTE, gl.GL_COMPUTE_SHADER)
         # Create the compute shader buffers.
@@ -208,8 +258,6 @@ class GLPlotWidget(QGLWidget):
         gl.glBufferData(gl.GL_SHADER_STORAGE_BUFFER, self.velocities.nbytes,
                      self.velocities, gl.GL_DYNAMIC_COPY)
         self.compute_program = link_shaders(cs)
-        gl.glEnable(gl.GL_PROGRAM_POINT_SIZE)
-        gl.glEnable(gl.GL_POINT_SMOOTH)
 
 
     def paintGL(self):
@@ -240,6 +288,8 @@ class GLPlotWidget(QGLWidget):
         gl.glVertexPointer(4, gl.GL_FLOAT, 0, None)
         # Use our pipeline.
         gl.glUseProgram(self.render_program)
+        loc = gl.glGetUniformLocation(self.render_program, 'aspect')
+        gl.glUniform1f(loc, float(self.width) / self.height)
         # draw "count" points from the VBO
         gl.glDrawArrays(gl.GL_POINTS, 0, self.count)
 
