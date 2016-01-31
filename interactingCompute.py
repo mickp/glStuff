@@ -233,7 +233,7 @@ class GLPlotWidget(QGLWidget):
     def initializeGL(self):
         """Initialize OpenGL, VBOs, upload data on the GPU, etc."""
         # background color
-        gl.glClearColor(1., 1., 1., 0)
+        gl.glClearColor(0.8, 0.8, 0.8, 0)
         # Make initial data array.
         # compile the vertex shader
         vs = compile_shader(VERTEX, gl.GL_VERTEX_SHADER)
