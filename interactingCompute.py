@@ -186,6 +186,7 @@ void main() {
         float distance = max(0.01, length(dS));
         force += sign(charge * other[2]) * direction / pow(distance,2);
     }
+    force = clamp(force, -mass/dt, mass/dt);
     // update velocity and position
     v = (1. - damping) * (v + dt * force / mass);
     pos = bound(pos + dt * v);
