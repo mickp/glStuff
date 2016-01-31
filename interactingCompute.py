@@ -73,11 +73,11 @@ COMPUTE = """
 #extension GL_ARB_shader_storage_buffer_object : enable
 
 layout( std430, binding=0 ) buffer Attributes {
-    vec4 attributes[ ]; 
+    vec4 attributes[%d];
 };
 
 layout( std430, binding=1 ) buffer Velocities {
-    vec2 velocities[ ];
+    vec2 velocities[%d];
 };
 
 uniform int N;
@@ -148,7 +148,7 @@ void main() {
     attributes[globalId] = vec4(pos, charge, mass);
     velocities[globalId] = v;
 }
-"""
+""" % (NUM_PARTICLES, NUM_PARTICLES)
 
 
 class GLPlotWidget(QGLWidget):
