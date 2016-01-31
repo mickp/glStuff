@@ -150,7 +150,7 @@ vec2 shortest(vec2 p) {
 vec2 bound(vec2 p) {
     int i;
     for (i=0; i<=1; i++) {
-        if (p[i] > 1)
+        if (p[i] >= 1)
         {
             p[i] -= 1;
         }
