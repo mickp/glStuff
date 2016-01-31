@@ -6,11 +6,11 @@ import OpenGL.GL as gl
 import OpenGL.arrays.vbo as glvbo
 import ctypes
 import struct
-DT = 0.0001
-DAMPING = 0.00
-NUM_PARTICLES = 2048
-RM = 0.001
-FRAC = 0.0
+DT = 0.00001
+DAMPING = 0.001
+NUM_PARTICLES = 512
+RM = 0.05
+FRAC = 0.1
 
 
 def compile_shader(source, shader_type):
@@ -41,8 +41,10 @@ def link_shaders(*shaders):
 VERTEX = """
 #version 330
 attribute vec4 attr;
+attribute vec4 velocity;
 flat out float gs_charge;
 flat out float gs_mass;
+flat out vec4 gs_velocity;
 
 void main(){
     vec2 position = vec2(attr[0], attr[1]);
@@ -51,6 +53,7 @@ void main(){
     gl_Position = vec4(2*position-1, 0.5, 1.0);
     gs_charge = charge;
     gs_mass = mass;
+    gs_velocity = velocity; 
 }
 """
 
@@ -58,12 +61,14 @@ void main(){
 GEOMETRY = """
 #version 330
 #define CIRCLE_SECTIONS 12
-#define VERTICES 36
+//#define VERTICES 36
+# define VERTICES 40
 #define PI 3.1415926
 
 layout (points) in;
 flat in float gs_charge[];
 flat in float gs_mass[];
+flat in vec4 gs_velocity[];
 layout (triangle_strip, max_vertices=VERTICES) out;
 flat out float fs_charge;
 uniform float aspect;
@@ -93,9 +98,19 @@ void main(){
     }
     EndPrimitive();
 
-    gl_Position = gl_in[0].gl_Position + vec4(0.1, 0.0, 0.0, 0.0);
+    // Arrow to show force.
+    vec4 force = vec4(gs_velocity[0][2], gs_velocity[0][3], 0., 0.);
+    //force = normalize(force);
+    // perpendicularity:  [-b, a] is perpendicular to [a, b]
+    vec4 perp_force = normalize(vec4(-force[1], force[0], 0., 0.));
+    gl_Position = centre - r * perp_force;
+    EmitVertex();
+    gl_Position = centre + 0.005 * log(length(force/gs_mass[0])) * normalize(force);
+    EmitVertex();
+    gl_Position = centre + r * perp_force;
     EmitVertex();
     EndPrimitive();
+
 }
 
 """
@@ -128,7 +143,7 @@ layout( std430, binding=0 ) buffer Attributes {
 };
 
 layout( std430, binding=1 ) buffer Velocities {
-    vec2 velocities[%d];
+    vec4 velocities[%d];
 };
 
 uniform uint N;
@@ -174,13 +189,13 @@ void main() {
     vec2 pos = vec2(me[0], me[1]);
     float charge = me[2];
     float mass = me[3];
-    vec2 v = velocities[ globalId ];
+    vec2 v = vec2(velocities[ globalId ][0], velocities[ globalId ][1]);
 
     // iterate over all particles to evaluate net force
     uint i;
     vec2 force = vec2(0, 0);
     for (i = uint(0); i < N; i++){
-            if (i == globalId){
+        if (i == globalId){
             continue;
         }
         vec4 other = attributes[i]; // x, y, charge, mass
@@ -188,16 +203,16 @@ void main() {
         dS = shortest(dS);
         vec2 direction = normalize(dS);
         float distance = length(dS);
-        force += direction * (pow(rm/distance, 12) - 2. * pow(rm/distance, 6));
+        force += 1000 * direction * (pow(rm/distance, 12) - 2. * pow(rm/distance, 6));
         force += sign(charge * other[2]) * direction / pow(distance,2);
     }
     force = clamp(force, -mass/dt, mass/dt);
     // update velocity and position
-    v = (1. - damping) * (v + dt * force / mass);
+    v = (1. - damping) * v + (dt * force / mass);
     pos = bound(pos + dt * v);
     // write back out to the buffers
     attributes[globalId] = vec4(pos, charge, mass);
-    velocities[globalId] = v;
+    velocities[globalId] = vec4(v, force);
 }
 """ % (NUM_PARTICLES, NUM_PARTICLES)
 
@@ -220,14 +235,13 @@ class GLPlotWidget(QGLWidget):
 
     def makeBuffers(self):
         self.count = N = NUM_PARTICLES
-        #self.positions = np.array(np.random.random( (N,2)), dtype=np.float32)
         positions = np.array(np.random.random((N, 2)), dtype=np.float32)
-        velocities = np.zeros((N, 2))
+        velocities = np.zeros((N, 4))
         masses = np.ones(N)
-        masses[0:N*FRAC] = 5
-        masses[0:N*FRAC] = 1
         charges = -np.ones(N)
-        charges[0:N*FRAC] = 1
+        if FRAC > 0:
+            masses[0:N*FRAC] = 20000
+            charges[0:N*FRAC] = 8
         self.attributes = np.zeros((N, 4), dtype=np.float32)
         self.attributes[:,0:2] = positions
         self.attributes[:,2] = charges
@@ -294,6 +308,9 @@ class GLPlotWidget(QGLWidget):
         # tell OpenGL that the VBO contains an array of vertices
         # these vertices contain 4 single precision coordinates
         gl.glVertexPointer(4, gl.GL_FLOAT, 0, None)
+        gl.glBindBuffer(gl.GL_ARRAY_BUFFER, self.ssbo)
+        gl.glVertexAttribPointer(1, 4, gl.GL_FLOAT, gl.GL_FALSE, 0, None)
+        gl.glEnableVertexAttribArray(1);
         # Use our pipeline.
         gl.glUseProgram(self.render_program)
         loc = gl.glGetUniformLocation(self.render_program, 'aspect')
