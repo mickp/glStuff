@@ -99,8 +99,6 @@ vec2 shortest(vec2 p) {
     return p;
 };
 
-
-
 vec2 bound(vec2 p) {
     int i;
     for (i=0; i<=1; i++) {
@@ -108,14 +106,13 @@ vec2 bound(vec2 p) {
         {
             p[i] -= 1;
         }
-        else if (p[i] < 0) 
+        else if (p[i] < 0)
         {
             p[i] += 1;
         }
     }
     return p;
 };
-
 
 void main() {
     uint globalId = gl_GlobalInvocationID.x;
@@ -210,9 +207,9 @@ class GLPlotWidget(QGLWidget):
         gl.glBindBufferBase(gl.GL_SHADER_STORAGE_BUFFER, 1, self.ssbo)
         gl.glBufferData(gl.GL_SHADER_STORAGE_BUFFER, self.velocities.nbytes,
                      self.velocities, gl.GL_DYNAMIC_COPY)
-        self.compute_program = link_shaders(cs)  
+        self.compute_program = link_shaders(cs)
         gl.glEnable(gl.GL_PROGRAM_POINT_SIZE)
-        gl.glEnable(gl.GL_POINT_SMOOTH)  
+        gl.glEnable(gl.GL_POINT_SMOOTH)
 
 
     def paintGL(self):
