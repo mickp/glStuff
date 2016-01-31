@@ -7,8 +7,11 @@ import OpenGL.arrays.vbo as glvbo
 import ctypes
 import struct
 DT = 0.0001
-DAMPING = 0.01
-NUM_PARTICLES = 4096
+DAMPING = 0.00
+NUM_PARTICLES = 2048
+RM = 0.001
+FRAC = 0.0
+
 
 def compile_shader(source, shader_type):
     """Compile a shader."""
@@ -131,6 +134,7 @@ layout( std430, binding=1 ) buffer Velocities {
 uniform uint N;
 uniform float dt;
 uniform float damping;
+uniform float rm;
 
 layout( local_size_x = 1, local_size_y = 1, local_size_z = 1 ) in;
 
@@ -183,7 +187,8 @@ void main() {
         vec2 dS = pos - vec2(other[0], other[1]);
         dS = shortest(dS);
         vec2 direction = normalize(dS);
-        float distance = max(0.01, length(dS));
+        float distance = length(dS);
+        force += direction * (pow(rm/distance, 12) - 2. * pow(rm/distance, 6));
         force += sign(charge * other[2]) * direction / pow(distance,2);
     }
     force = clamp(force, -mass/dt, mass/dt);
@@ -219,10 +224,10 @@ class GLPlotWidget(QGLWidget):
         positions = np.array(np.random.random((N, 2)), dtype=np.float32)
         velocities = np.zeros((N, 2))
         masses = np.ones(N)
-        #masses[:] = 50
-        masses[-N/2-1:-1] = 1
+        masses[0:N*FRAC] = 5
+        masses[0:N*FRAC] = 1
         charges = -np.ones(N)
-        #charges[-N/2-1:-1] = -1
+        charges[0:N*FRAC] = 1
         self.attributes = np.zeros((N, 4), dtype=np.float32)
         self.attributes[:,0:2] = positions
         self.attributes[:,2] = charges
@@ -274,6 +279,8 @@ class GLPlotWidget(QGLWidget):
         gl.glUniform1f(loc, DT)
         loc = gl.glGetUniformLocation(self.compute_program, 'damping')
         gl.glUniform1f(loc, DAMPING)
+        loc = gl.glGetUniformLocation(self.compute_program, 'rm')
+        gl.glUniform1f(loc, RM)
         gl.glDispatchCompute(self.count, 1, 1)
         gl.glMemoryBarrier(gl.GL_SHADER_STORAGE_BARRIER_BIT)
         # Read back the modified data.
