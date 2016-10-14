@@ -11,55 +11,82 @@ class MyWidget(QtOpenGL.QGLWidget):
     def initializeGL(self):
         glViewport(0, 0, self.width(), self.height())
         glEnable(GL_PROGRAM_POINT_SIZE)
+        glEnable(GL_POINT_SMOOTH)
         # compile shaders and program
-        self.shaderProgram = QtOpenGL.QGLShaderProgram()
+        self.shaderProgram = QtOpenGL.QGLShaderProgram(self)
         self.shaderProgram.addShaderFromSourceFile(QtOpenGL.QGLShader.Vertex, "meshVertex.glsl")
         self.shaderProgram.addShaderFromSourceFile(QtOpenGL.QGLShader.Fragment, "meshFragment.glsl")
         self.shaderProgram.link()
-        # triangle position and color
-        vertexData = numpy.array([0.0, 0.5, 0.0, 1.0,
-                                  0.5, -0.366, 0.0, 1.0,
-                                  -0.5, -0.366, 0.0, 1.0,
-                                  1.0, 0.0, 0.0, 1.0,
-                                  0.0, 1.0, 0.0, 1.0,
-                                  0.0, 0.0, 1.0, 1.0, ],
-                                 dtype=numpy.float32)
 
-        # create VAO
-        self.VAO = glGenVertexArrays(1)
-        glBindVertexArray(self.VAO)
+        vertexPositions = [[0.0, 0.5, 0.0, 1.0],
+                           [0.5, -0.366, 0.0, 1.0],
+                           [-0.5, -0.366, 0.0, 1.0], ]
+        vertexColors = [[1., 0., 0., 1.],
+                        [0., 1., 0., 1.],
+                        [0., 0., 1., 1.], ]
 
-        # create VBO
-        VBO = glGenBuffers(1)
-        glBindBuffer(GL_ARRAY_BUFFER, VBO)
-        glBufferData(GL_ARRAY_BUFFER, vertexData.nbytes, vertexData, GL_STATIC_DRAW)
 
-        # enable array and set up data
-        glEnableVertexAttribArray(0)
-        glEnableVertexAttribArray(1)
-        glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, None)
-        # the last parameter is a pointer
-        # python donot have pointer, have to using ctypes
-        glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 0, ctypes.c_void_p(48))
+        self.vbo = QtOpenGL.QGLBuffer(GL_ARRAY_BUFFER)
 
-        glBindBuffer(GL_ARRAY_BUFFER, 0)
-        glBindVertexArray(0)
+
+
+        self.shaderProgram.enableAttributeArray("position")
+        self.shaderProgram.enableAttributeArray("color")
+        self.shaderProgram.setAttributeArray("position", vertexPositions)
+        self.shaderProgram.setAttributeArray("color", vertexColors)
+
+        cs = glCreateShader(GL_COMPUTE_SHADER)
+        with open("meshCompute.glsl") as f:
+            glShaderSource(cs, f.read())
+        glCompileShader(cs)
+        if glGetShaderiv(cs, GL_COMPILE_STATUS) != 1:
+            raise RuntimeError(glGetShaderInfoLog(cs))
+
+        self.ssbo = glGenBuffers(1)
+        self.vertices = numpy.array(vertexPositions, dtype=numpy.float32)
+        self.data = numpy.array([1,2,3,4]*4, dtype=numpy.float32)
+
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, self.ssbo)
+        glBufferData(GL_SHADER_STORAGE_BUFFER, self.vertices.nbytes, self.vertices, GL_DYNAMIC_COPY)
+
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, self.ssbo)
+        glBufferData(GL_SHADER_STORAGE_BUFFER, self.data.nbytes, self.data, GL_DYNAMIC_COPY)
+
+        self.computeProgram = glCreateProgram()
+        glAttachShader(self.computeProgram, cs)
+        glLinkProgram(self.computeProgram)
+        print glGetProgramiv(self.computeProgram, GL_LINK_STATUS)
+        if glGetProgramiv(self.computeProgram, GL_LINK_STATUS) != 1:
+            raise RuntimeError(glGetProgramInfoLog(self.computeProgram))
+
 
     def paintGL(self):
-        glClearColor(0, 0, 0, 1)
+        glClearColor(0., 0., 0., 1.)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
-        # active shader program
+
         self.shaderProgram.bind()
-
-        glBindVertexArray(self.VAO)
-
-        # draw triangle
         glDrawArrays(GL_POINTS, 0, 3)
-
-        glBindVertexArray(0)
-        
         self.shaderProgram.release()
+
+        print(self.data)
+        print(self.vertices)
+        glUseProgram(self.computeProgram)
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, self.ssbo)
+        glDispatchCompute(len(self.data), 1, 1)
+
+        #glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT)
+
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, self.ssbo)
+        glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0,
+                           self.vertices.nbytes, self.vertices)
+
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER,1, self.ssbo)
+        glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0,
+                           self.data.nbytes, self.data)
+
+        print(self.data)
+        print(self.vertices)
 
 
 def main():
@@ -68,8 +95,9 @@ def main():
     app = QtGui.QApplication(sys.argv)
 
     glformat = QtOpenGL.QGLFormat()
-    glformat.setVersion(3, 3)
     glformat.setProfile(QtOpenGL.QGLFormat.CoreProfile)
+    #glformat.setVersion(4, 0)
+    print (glformat.majorVersion(), glformat.minorVersion())
     w = MyWidget(glformat)
     w.resize(640, 480)
     w.show()
