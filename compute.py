@@ -43,13 +43,14 @@ class MyWidget(QtOpenGL.QGLWidget):
             raise RuntimeError(glGetShaderInfoLog(cs))
 
         self.ssbo = glGenBuffers(1)
+        self.vbo = glGenBuffers(1)
         self.vertices = numpy.array(vertexPositions, dtype=numpy.float32)
         self.data = numpy.array([1,2,3,4]*4, dtype=numpy.float32)
 
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, self.ssbo)
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, self.vbo)
         glBufferData(GL_SHADER_STORAGE_BUFFER, self.vertices.nbytes, self.vertices, GL_DYNAMIC_COPY)
 
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, self.ssbo)
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, self.ssbo)
         glBufferData(GL_SHADER_STORAGE_BUFFER, self.data.nbytes, self.data, GL_DYNAMIC_COPY)
 
         self.computeProgram = glCreateProgram()
@@ -72,16 +73,17 @@ class MyWidget(QtOpenGL.QGLWidget):
         print(self.data)
         print(self.vertices)
         glUseProgram(self.computeProgram)
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, self.ssbo)
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, self.vbo)
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, self.ssbo)
         glDispatchCompute(len(self.data), 1, 1)
 
         #glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT)
 
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, self.ssbo)
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, self.vbo)
         glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0,
                            self.vertices.nbytes, self.vertices)
 
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER,1, self.ssbo)
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, self.ssbo)
         glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0,
                            self.data.nbytes, self.data)
 
