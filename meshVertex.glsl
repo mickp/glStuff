@@ -1,14 +1,14 @@
 #version 330
 
-uniform mat4 pr_matrix;
 in vec4 position;
-//layout (location=1) in vec4 color;
-
-//smooth out vec4 theColor;
+uniform mat4 gl_ModelViewMatrix;
+//uniform uint NUM_NODES;
+out int ID;
 
 void main()
 {
-    gl_Position = pr_matrix * position;//*pr_matrix;
+    gl_Position = gl_ModelViewMatrix * position;
     gl_PointSize = 4;
-    //theColor = color;
+    //theColor = vec4(forces, 0. ,0.5);
+    ID = gl_VertexID;
 }

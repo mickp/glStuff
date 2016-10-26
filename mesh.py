@@ -1,5 +1,4 @@
-NUM_NODES = 256
-NUM_DIMS = 2
+NUM_NODES = 4
 import numpy as np
 import ctypes
 from OpenGL.GL import *
@@ -30,27 +29,38 @@ class MeshWidget(QtOpenGL.QGLWidget):
         # compile shaders and program
         self.shaderProgram = QtOpenGL.QGLShaderProgram(self)
         self.shaderProgram.addShaderFromSourceFile(QtOpenGL.QGLShader.Vertex, "meshVertex.glsl")
+        self.shaderProgram.addShaderFromSourceFile(QtOpenGL.QGLShader.Geometry, "meshGeometry.glsl")
         self.shaderProgram.addShaderFromSourceFile(QtOpenGL.QGLShader.Fragment, "meshFragment.glsl")
         self.shaderProgram.link()
 
-        self.pr_matrix = QtGui.QMatrix4x4(1., 0., 0., -.5 ,
-                                          0., 1., 0., -.5,
-                                          0., 0., 1.,  0.,
-                                          0., 0., 0., 1.)
+        #self.pr_matrix = QtGui.QMatrix4x4(1., 0., 0., -.5 ,
+        #                                  0., 1., 0., -.5,
+        #                                  0., 0., 1.,  0.,
+        #                                  0., 0., 0., 1.)
+        self.pr_matrix = [1., 0., 0., -.0 ,
+                          0., 1., 0., -.0,
+                          0., 0., 1.,  0.,
+                          -.5, -.5, 0., 1.]
 
         # random points and edges
         self.positions = np.random.random((NUM_NODES, 2))
         # Adjacency matrix stores L0.
         self.adjacency = np.random.random((NUM_NODES ** 2 - NUM_NODES) / 2)
-        p_edge = 1. -  (1. / NUM_NODES)
+        p_edge = 0.#1. -  (1. / NUM_NODES)
         self.adjacency[self.adjacency >= p_edge] = 1.
         self.adjacency[self.adjacency < p_edge] = 0.
 
 
         self.edge_indices = np.array([ktoij(k) for k in np.where(self.adjacency>0)[0]]).ravel()
         self.forces = np.zeros(((NUM_NODES ** 2 - NUM_NODES) / 2, 2))
+        self.forcesBuffer = glGenBuffers(1)
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, self.forcesBuffer)
+        glBufferData(GL_SHADER_STORAGE_BUFFER, self.forces.nbytes, self.forces, GL_DYNAMIC_COPY)
+        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT)
 
         self.shaderProgram.setAttributeArray("position", self.positions)
+        self.shaderProgram.setUniformValue("NUM_NODES", NUM_NODES)
+
 
 
     def keyPressEvent(self, event):
@@ -87,20 +97,27 @@ class MeshWidget(QtOpenGL.QGLWidget):
                 resultants[p] += self.forces[indices].sum(axis=0)
             self.positions[p] += 0.01 * resultants[p]
         self.shaderProgram.setAttributeArray("position", self.positions)
-        self.shaderProgram.setUniformValueArray("forces", self.forces)
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, self.forcesBuffer)
+        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT)
+        glBufferData(GL_SHADER_STORAGE_BUFFER, self.forces.nbytes, self.forces, GL_DYNAMIC_COPY)
+
 
     def paintGL(self):
         glClearColor(0., 0., 0., 1.)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        glMatrixMode(GL_MODELVIEW)
+        glLoadMatrixf(self.pr_matrix)
 
         self.shaderProgram.bind()
         self.shaderProgram.enableAttributeArray("position")
-        self.shaderProgram.setUniformValue("pr_matrix", self.pr_matrix)
-        glDrawArrays(GL_POINTS, 0, NUM_NODES)
+        # draw nodes
+        #glDrawArrays(GL_POINTS, 0, NUM_NODES)
+        # draw edges
         glDrawElements(GL_LINES, len(self.edge_indices), GL_UNSIGNED_INT, self.edge_indices)
         self.shaderProgram.release()
         self.calc_force()
         QtCore.QTimer.singleShot(1, self.updateGL)
+
 
     def resizeGL(self, width, height):
         glViewport(0, 0, self.width(), self.height())
