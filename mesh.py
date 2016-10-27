@@ -1,4 +1,4 @@
-NUM_NODES = 32
+NUM_NODES = 4
 import numpy as np
 import ctypes
 from OpenGL.GL import *
@@ -26,7 +26,11 @@ class MeshWidget(QtOpenGL.QGLWidget):
         glViewport(0, 0, self.width(), self.height())
         glEnable(GL_PROGRAM_POINT_SIZE)
         glEnable(GL_POINT_SMOOTH)
-        self.strainsBuffer = glGenBuffers(1)
+        buffers = glGenBuffers(4)
+        self.buffers = {'strains':buffers[0],
+                        'positions':buffers[1],
+                        'lengths':buffers[2],
+                        'edges':buffers[3]}
         self.shaderProgram = QtOpenGL.QGLShaderProgram(self)
         self.shaderProgram.addShaderFromSourceFile(QtOpenGL.QGLShader.Vertex, "meshVertex.glsl")
         self.gs = QtOpenGL.QGLShader(QtOpenGL.QGLShader.Geometry)
@@ -40,7 +44,7 @@ class MeshWidget(QtOpenGL.QGLWidget):
                           0., 0., 1.,  0.,
                           -.5, -.5, 0., 1.]
         # random points and edges
-        self.positions = np.random.random((NUM_NODES, 2))
+        self.positions = np.random.random((NUM_NODES, 2)).astype(np.float32)
         # Adjacency matrix stores L0.
         self.adjacency = np.random.random((NUM_NODES ** 2 - NUM_NODES) / 2)
         p_edge = 0.#1. -  (1. / NUM_NODES)
@@ -54,11 +58,27 @@ class MeshWidget(QtOpenGL.QGLWidget):
         self.strains = np.zeros(((NUM_NODES ** 2 - NUM_NODES) / 2), dtype=np.float32)
         # Bind values to program.
         self.shaderProgram.bind()
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, self.strainsBuffer)
-        glBufferData(GL_SHADER_STORAGE_BUFFER, self.strains.nbytes, self.strains, GL_DYNAMIC_COPY)
         self.shaderProgram.setUniformValue("NUM_NODES", NUM_NODES)
         self.shaderProgram.setAttributeArray("position", self.positions)
         self.shaderProgram.enableAttributeArray("position")
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, self.buffers['strains'])
+        glBufferData(GL_SHADER_STORAGE_BUFFER, self.strains.nbytes, self.strains, GL_DYNAMIC_COPY)
+        self.shaderProgram.release()
+
+        cs = glCreateShader(GL_COMPUTE_SHADER)
+        with open("meshCompute.glsl") as f:
+            glShaderSource(cs, f.read())
+        glCompileShader(cs)
+        if glGetShaderiv(cs, GL_COMPILE_STATUS) != 1:
+            raise RuntimeError(glGetShaderInfoLog(cs))
+
+        self.computeProgram = glCreateProgram()
+        glAttachShader(self.computeProgram, cs)
+        glLinkProgram(self.computeProgram)
+        if glGetProgramiv(self.computeProgram, GL_LINK_STATUS) != 1:
+            raise RuntimeError(glGetProgramInfoLog(self.computeProgram))
+
+
 
     def keyPressEvent(self, event):
         key = event.key()
@@ -94,7 +114,7 @@ class MeshWidget(QtOpenGL.QGLWidget):
                 resultants[p] += self.forces[indices].sum(axis=0)
             self.positions[p] += 0.01 * resultants[p]
         self.shaderProgram.setAttributeArray("position", self.positions)
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, self.strainsBuffer)
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, self.buffers['strains'])
         glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT)
         glBufferData(GL_SHADER_STORAGE_BUFFER, self.strains.nbytes, self.strains, GL_DYNAMIC_COPY)
 
@@ -104,8 +124,11 @@ class MeshWidget(QtOpenGL.QGLWidget):
         glMatrixMode(GL_MODELVIEW)
         glLoadMatrixf(self.pr_matrix)
 
+        # Render phase.
         self.shaderProgram.bind()
         self.shaderProgram.enableAttributeArray("position")
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, self.buffers['strains'])
+        glBufferData(GL_SHADER_STORAGE_BUFFER, self.strains.nbytes, self.strains, GL_DYNAMIC_COPY)
         # draw nodes
         glDrawArrays(GL_POINTS, 0, NUM_NODES)
         # draw edges
@@ -116,9 +139,29 @@ class MeshWidget(QtOpenGL.QGLWidget):
         self.shaderProgram.link()
         #glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0,
         #                   self.strains.nbytes, self.strains)
+        self.shaderProgram.disableAttributeArray("position")
         self.shaderProgram.release()
-        self.calc_force()
-        QtCore.QTimer.singleShot(1, self.updateGL)
+
+        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT)
+        # Compute phase.
+        #glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, self.buffers['strains'])
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, self.buffers['positions'])
+        glBufferData(GL_SHADER_STORAGE_BUFFER, self.positions.nbytes, self.positions, GL_DYNAMIC_COPY)
+        #glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, self.buffers['lengths'])
+        #glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, self.buffers['edges'])
+        glUseProgram(self.computeProgram)
+        print self.positions
+
+        glDispatchCompute(4, 1, 1)
+        glMemoryBarrier(GL_BUFFER_UPDATE_BARRIER_BIT | GL_SHADER_STORAGE_BARRIER_BIT)
+        import time
+        time.sleep(.1)
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, self.buffers['positions'])
+        glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, self.positions.nbytes, self.positions)
+        print self.positions
+        #self.calc_force()
+        print '=============================='
+        QtCore.QTimer.singleShot(1000, self.updateGL)
 
 
     def resizeGL(self, width, height):

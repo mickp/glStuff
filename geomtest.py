@@ -49,9 +49,9 @@ void main()
   fb[gl_PrimitiveIDIn ][1] = vdata[1].index;
 
   gl_Position = gl_in[0].gl_Position;
-  //EmitVertex();
+  EmitVertex();
   gl_Position = gl_in[1].gl_Position;
-  //EmitVertex();
+  EmitVertex();
 }
 """
 
