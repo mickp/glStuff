@@ -2,13 +2,11 @@
 
 in vec4 position;
 uniform mat4 gl_ModelViewMatrix;
-//uniform uint NUM_NODES;
-out int ID;
+out vec4 col;
 
 void main()
 {
     gl_Position = gl_ModelViewMatrix * position;
-    gl_PointSize = 4;
-    //theColor = vec4(forces, 0. ,0.5);
-    ID = gl_VertexID;
+    gl_PointSize = 12;
+    col = vec4(0.5, 1., 0.5, 0.5);
 }
