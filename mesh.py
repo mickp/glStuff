@@ -181,12 +181,11 @@ class MeshWidget(QtOpenGL.QGLWidget):
     def paintGL(self):
         glClearColor(0., 0., 0., 1.)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-        glMatrixMode(GL_MODELVIEW)
-        glLoadMatrixf(self.pr_matrix)
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0)
 
         # Render phase.
         glUseProgram(self.renderNodes)
+        glUniformMatrix4fv(0, 1, False, self.pr_matrix)
         glVertexPointer(2, GL_FLOAT, 0, None)
         glBindBuffer(GL_ARRAY_BUFFER, self.buffers['positions'])
         glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, None)
@@ -194,6 +193,7 @@ class MeshWidget(QtOpenGL.QGLWidget):
         glDrawArrays(GL_POINTS, 0, NUM_NODES)
 
         glUseProgram(self.renderEdges)
+        glUniformMatrix4fv(0, 1, False, self.pr_matrix)
         glVertexPointer(2, GL_FLOAT, 0, None)
         glBindBuffer(GL_ARRAY_BUFFER, self.buffers['positions'])
         glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, None)
