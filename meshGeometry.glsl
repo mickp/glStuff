@@ -2,7 +2,7 @@
 #extension GL_ARB_shader_storage_buffer_object : enable
 
 layout (lines) in;
-layout (line_strip) out;
+layout (line_strip, max_vertices=2) out;
 uniform int NUM_NODES;
 out vec4 col;
 

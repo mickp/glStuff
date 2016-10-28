@@ -1,4 +1,4 @@
-NUM_NODES = 32
+NUM_NODES = 128
 import numpy as np
 import ctypes
 from OpenGL.GL import *
@@ -20,6 +20,24 @@ try:
 except AssertionError:
     raise Exception("Incorrect output from ijtok or ktoij.")
 
+def compile_shader(shader_type, source_file):
+    shader = glCreateShader(shader_type)
+    with open(source_file) as f:
+        glShaderSource(shader, f.read())
+    glCompileShader(shader)
+    if glGetShaderiv(shader, GL_COMPILE_STATUS) != 1:
+        raise RuntimeError(glGetShaderInfoLog(shader))
+    return shader
+
+def link_shaders(*args):
+    program = glCreateProgram()
+    for shader in args:
+        glAttachShader(program, shader)
+    glLinkProgram(program)
+    if glGetProgramiv(program, GL_LINK_STATUS) != 1:
+        raise RuntimeError(glGetProgramInfoLog(program))
+    return program
+
 
 class MeshWidget(QtOpenGL.QGLWidget):
     useComputeShader = True;
@@ -34,13 +52,14 @@ class MeshWidget(QtOpenGL.QGLWidget):
                         'edges':buffers[3],
                         'forces':buffers[4],}
 
-        self.shaderProgram = QtOpenGL.QGLShaderProgram(self)
-        self.shaderProgram.addShaderFromSourceFile(QtOpenGL.QGLShader.Vertex, "meshVertex.glsl")
-        self.gs = QtOpenGL.QGLShader(QtOpenGL.QGLShader.Geometry)
-        self.gs.compileSourceFile("meshGeometry.glsl")
+        #self.shaderProgram = QtOpenGL.QGLShaderProgram(self)
+        #self.shaderProgram.addShaderFromSourceFile(QtOpenGL.QGLShader.Vertex, "meshVertex.glsl")
+        #self.gs = QtOpenGL.QGLShader(QtOpenGL.QGLShader.Geometry)
+        #self.gs.compileSourceFile("meshGeometry.glsl")
         #self.shaderProgram.addShaderFromSourceFile(QtOpenGL.QGLShader.Geometry, "meshGeometry.glsl")
-        self.shaderProgram.addShaderFromSourceFile(QtOpenGL.QGLShader.Fragment, "meshFragment.glsl")
-        self.shaderProgram.link()
+        #self.shaderProgram.addShaderFromSourceFile(QtOpenGL.QGLShader.Fragment, "meshFragment.glsl")
+        #self.shaderProgram.link()
+
 
         # Projection matrix.
         self.pr_matrix = [1., 0., 0., -.0 ,
@@ -76,25 +95,35 @@ class MeshWidget(QtOpenGL.QGLWidget):
         glBufferData(GL_SHADER_STORAGE_BUFFER, self.forces.nbytes, self.forces, GL_DYNAMIC_COPY)
 
         # Bind values to program.
-        self.shaderProgram.bind()
-        self.shaderProgram.setUniformValue("NUM_NODES", NUM_NODES)
-        self.shaderProgram.setAttributeArray("position", self.positions)
-        self.shaderProgram.enableAttributeArray("position")
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, self.buffers['strains'])
-        self.shaderProgram.release()
+        #self.shaderProgram.bind()
+        #self.shaderProgram.setUniformValue("NUM_NODES", NUM_NODES)
+        #self.shaderProgram.setAttributeArray("position", self.positions)
+        #self.shaderProgram.enableAttributeArray("position")
+        #glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, self.buffers['strains'])
+        #self.shaderProgram.release()
 
-        cs = glCreateShader(GL_COMPUTE_SHADER)
-        with open("meshCompute.glsl") as f:
-            glShaderSource(cs, f.read())
-        glCompileShader(cs)
-        if glGetShaderiv(cs, GL_COMPILE_STATUS) != 1:
-            raise RuntimeError(glGetShaderInfoLog(cs))
 
-        self.computeProgram = glCreateProgram()
-        glAttachShader(self.computeProgram, cs)
-        glLinkProgram(self.computeProgram)
-        if glGetProgramiv(self.computeProgram, GL_LINK_STATUS) != 1:
-            raise RuntimeError(glGetProgramInfoLog(self.computeProgram))
+        self.shaders = {}
+        self.shaders['vertex'] = compile_shader(GL_VERTEX_SHADER, "meshVertex.glsl")
+        self.shaders['geometry'] = compile_shader(GL_GEOMETRY_SHADER, "meshGeometry.glsl")
+        self.shaders['fragment'] = compile_shader(GL_FRAGMENT_SHADER, "meshFragment.glsl")
+        self.shaders['compute'] = compile_shader(GL_COMPUTE_SHADER, "meshCompute.glsl")
+
+        self.computeProgram = link_shaders(self.shaders['compute'])
+
+        self.renderEdges = link_shaders(self.shaders['vertex'],
+                                        self.shaders['geometry'],
+                                        self.shaders['fragment'])
+
+        self.renderNodes = link_shaders(self.shaders['vertex'],
+                                        self.shaders['fragment'])
+
+
+
+        #glUseProgram(self.renderNodes)
+        glBindBuffer(GL_ARRAY_BUFFER, self.buffers['positions'])
+        glBufferData(GL_ARRAY_BUFFER, self.positions.nbytes, self.positions, GL_DYNAMIC_DRAW)
+
 
 
 
@@ -143,36 +172,37 @@ class MeshWidget(QtOpenGL.QGLWidget):
                     indices.append(indices[-1] + NUM_NODES - i - 2)
                 resultants[p] += self.forces[indices].sum(axis=0)
             self.positions[p] += 0.01 * resultants[p]
-        self.shaderProgram.setAttributeArray("position", self.positions)
         glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT)
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, self.buffers['strains'])
         glBufferData(GL_SHADER_STORAGE_BUFFER, self.strains.nbytes, self.strains, GL_DYNAMIC_COPY)
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, self.buffers['positions'])
+        glBufferData(GL_SHADER_STORAGE_BUFFER, self.positions.nbytes, self.positions, GL_DYNAMIC_DRAW)
 
     def paintGL(self):
         glClearColor(0., 0., 0., 1.)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         glMatrixMode(GL_MODELVIEW)
         glLoadMatrixf(self.pr_matrix)
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0)
 
         # Render phase.
-        self.shaderProgram.setAttributeArray("position", self.positions)
-        #self.shaderProgram.enableAttributeArray("position")
-        self.shaderProgram.bind()
-        # draw nodes
+        glUseProgram(self.renderNodes)
+        glVertexPointer(2, GL_FLOAT, 0, None)
+        glBindBuffer(GL_ARRAY_BUFFER, self.buffers['positions'])
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, None)
+        glEnableVertexAttribArray(0)
         glDrawArrays(GL_POINTS, 0, NUM_NODES)
-        # draw edges
-        self.shaderProgram.addShader(self.gs)
-        self.shaderProgram.link()
-        self.shaderProgram.bind()
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, self.buffers['strains'])
-        glBufferData(GL_SHADER_STORAGE_BUFFER, 0, self.strains, GL_DYNAMIC_COPY)
-        glDrawElements(GL_LINES, len(self.edge_indices), GL_UNSIGNED_INT, self.edge_indices)
-        self.shaderProgram.removeShader(self.gs)
-        self.shaderProgram.link()
-        #self.shaderProgram.disableAttributeArray("position")
-        self.shaderProgram.release()
 
-        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT)
+        glUseProgram(self.renderEdges)
+        glVertexPointer(2, GL_FLOAT, 0, None)
+        glBindBuffer(GL_ARRAY_BUFFER, self.buffers['positions'])
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, None)
+        glEnableVertexAttribArray(0)
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, self.buffers['strains'])
+        #glMemoryBarrier(GL_BUFFER_UPDATE_BARRIER_BIT | GL_SHADER_STORAGE_BARRIER_BIT)
+        glEnable(GL_RESCALE_NORMAL)
+        glDrawElements(GL_LINES, len(self.edge_indices), GL_UNSIGNED_INT, self.edge_indices)
+
 
         if MeshWidget.useComputeShader:
             glUseProgram(self.computeProgram)
@@ -183,12 +213,7 @@ class MeshWidget(QtOpenGL.QGLWidget):
             glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, self.buffers['edges'])
             glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, self.buffers['forces'])
             glDispatchCompute(max(NUM_NODES, len(self.edge_indices)/2), 1, 1)
-
             glMemoryBarrier(GL_BUFFER_UPDATE_BARRIER_BIT | GL_SHADER_STORAGE_BARRIER_BIT)
-            glBindBuffer(GL_SHADER_STORAGE_BUFFER, self.buffers['positions'])
-            glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, self.positions.nbytes, self.positions)
-            glBindBuffer(GL_SHADER_STORAGE_BUFFER, self.buffers['strains'])
-            glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, self.strains.nbytes, self.strains)
         else:
             self.calc_force()
 
