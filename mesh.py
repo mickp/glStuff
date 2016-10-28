@@ -52,15 +52,6 @@ class MeshWidget(QtOpenGL.QGLWidget):
                         'edges':buffers[3],
                         'forces':buffers[4],}
 
-        #self.shaderProgram = QtOpenGL.QGLShaderProgram(self)
-        #self.shaderProgram.addShaderFromSourceFile(QtOpenGL.QGLShader.Vertex, "meshVertex.glsl")
-        #self.gs = QtOpenGL.QGLShader(QtOpenGL.QGLShader.Geometry)
-        #self.gs.compileSourceFile("meshGeometry.glsl")
-        #self.shaderProgram.addShaderFromSourceFile(QtOpenGL.QGLShader.Geometry, "meshGeometry.glsl")
-        #self.shaderProgram.addShaderFromSourceFile(QtOpenGL.QGLShader.Fragment, "meshFragment.glsl")
-        #self.shaderProgram.link()
-
-
         # Projection matrix.
         self.pr_matrix = [1., 0., 0., -.0 ,
                           0., 1., 0., -.0,
@@ -94,15 +85,6 @@ class MeshWidget(QtOpenGL.QGLWidget):
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, self.buffers['forces'])
         glBufferData(GL_SHADER_STORAGE_BUFFER, self.forces.nbytes, self.forces, GL_DYNAMIC_COPY)
 
-        # Bind values to program.
-        #self.shaderProgram.bind()
-        #self.shaderProgram.setUniformValue("NUM_NODES", NUM_NODES)
-        #self.shaderProgram.setAttributeArray("position", self.positions)
-        #self.shaderProgram.enableAttributeArray("position")
-        #glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, self.buffers['strains'])
-        #self.shaderProgram.release()
-
-
         self.shaders = {}
         self.shaders['vertex'] = compile_shader(GL_VERTEX_SHADER, "meshVertex.glsl")
         self.shaders['geometry'] = compile_shader(GL_GEOMETRY_SHADER, "meshGeometry.glsl")
@@ -117,8 +99,6 @@ class MeshWidget(QtOpenGL.QGLWidget):
 
         self.renderNodes = link_shaders(self.shaders['vertex'],
                                         self.shaders['fragment'])
-
-
 
         #glUseProgram(self.renderNodes)
         glBindBuffer(GL_ARRAY_BUFFER, self.buffers['positions'])
@@ -150,7 +130,6 @@ class MeshWidget(QtOpenGL.QGLWidget):
             self.updateGL()
         else:
             event.ignore()
-
 
     def calc_force(self):
         for i in xrange(len(self.edge_indices) / 2):
