@@ -1,9 +1,17 @@
 NUM_NODES = 128
+RIGHT = 1.
+LEFT = -1.
+TOP = 1.
+BOTTOM = -1.
+NEAR = 1
+FAR = -1
+
 import numpy as np
 import ctypes
 from OpenGL.GL import *
 from OpenGL.GL import shaders
 from PyQt4 import QtCore, QtGui, QtOpenGL
+
 
 # Indexes into a half matrix.
 def ijtok(i, j):
@@ -41,6 +49,8 @@ def link_shaders(*args):
 
 class MeshWidget(QtOpenGL.QGLWidget):
     useComputeShader = True;
+    perspective = False
+    transpose = True
     def initializeGL(self):
         glViewport(0, 0, self.width(), self.height())
         glEnable(GL_PROGRAM_POINT_SIZE)
@@ -51,14 +61,8 @@ class MeshWidget(QtOpenGL.QGLWidget):
                         'lengths':buffers[2],
                         'edges':buffers[3],
                         'forces':buffers[4],}
-
-        # Projection matrix.
-        self.pr_matrix = [1., 0., 0., -.0 ,
-                          0., 1., 0., -.0,
-                          0., 0., 1.,  0.,
-                          -.5, -.5, 0., 1.]
         # random points and edges
-        self.positions = np.random.random((NUM_NODES, 2)).astype(np.float32)
+        self.positions = np.random.random((NUM_NODES, 2)).astype(np.float32) - 0.5
         # Adjacency matrix stores L0.
         self.adjacency = np.random.random((NUM_NODES ** 2 - NUM_NODES) / 2)
         p_edge = 0.#1. -  (1. / NUM_NODES)
@@ -73,6 +77,7 @@ class MeshWidget(QtOpenGL.QGLWidget):
         self.strains = np.zeros(((NUM_NODES ** 2 - NUM_NODES) / 2), dtype=np.float32)
         # Lengths
         self.lengths = np.ones_like(self.strains)
+        #self.lengths[range(0, len(self.lengths), 2)] = 0.5
         # Initialize buffers.
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, self.buffers['strains'])
         glBufferData(GL_SHADER_STORAGE_BUFFER, self.strains.nbytes, self.strains, GL_DYNAMIC_COPY)
@@ -104,6 +109,26 @@ class MeshWidget(QtOpenGL.QGLWidget):
         glBindBuffer(GL_ARRAY_BUFFER, self.buffers['positions'])
         glBufferData(GL_ARRAY_BUFFER, self.positions.nbytes, self.positions, GL_DYNAMIC_DRAW)
 
+    def getProjection(self):
+        l = float(LEFT)
+        r = float(RIGHT)
+        t = float(TOP)
+        b = float(BOTTOM)
+        n = float(NEAR)
+        f = float(FAR)
+        if MeshWidget.perspective:
+            matrix = [2*n/(r-l),         0,  (r+l)/(r-l),           0,
+                              0, 2*n/(t-b),  (t+b)/(t-b),           0,
+                              0,         0, -(f+n)/(f-n), -2*f*n/(f-n),
+                              0,         0,           -1,           0]
+        else:
+            matrix = [2/(r-l),          0,        0, -(r+l)/(r-l),
+                            0,    2/(t-b),        0, -(t+b)/(t-b),
+                            0,          0, -2/(f-n), -(f+n)/(f-n),
+                            0,          0,        0,            1,]
+        matrix = np.array(matrix, dtype=np.float32)
+        matrix.reshape((4,4))
+        return matrix
 
 
 
@@ -120,9 +145,12 @@ class MeshWidget(QtOpenGL.QGLWidget):
                 glBufferData(GL_SHADER_STORAGE_BUFFER, self.positions.nbytes, self.positions, GL_DYNAMIC_COPY)
             else:
                 glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, self.positions.nbytes, self.positions)
-        elif key in (QtCore.Qt.Key_V,):
-            self.verify()
-            return
+        elif key in (QtCore.Qt.Key_P,):
+            MeshWidget.perspective = not MeshWidget.perspective
+            print "Projection ", self.getProjection()
+        elif key in (QtCore.Qt.Key_T,):
+            MeshWidget.transpose = not MeshWidget.transpose
+            print "Transpose ", MeshWidget.transpose
         else:
             handled = False
 
@@ -161,10 +189,10 @@ class MeshWidget(QtOpenGL.QGLWidget):
         glClearColor(0., 0., 0., 1.)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0)
-
+        proj = self.getProjection()
         # Render phase.
         glUseProgram(self.renderNodes)
-        glUniformMatrix4fv(0, 1, False, self.pr_matrix)
+        glUniformMatrix4fv(0, 1, MeshWidget.transpose, proj)
         glVertexPointer(2, GL_FLOAT, 0, None)
         glBindBuffer(GL_ARRAY_BUFFER, self.buffers['positions'])
         glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, None)
@@ -172,7 +200,7 @@ class MeshWidget(QtOpenGL.QGLWidget):
         glDrawArrays(GL_POINTS, 0, NUM_NODES)
 
         glUseProgram(self.renderEdges)
-        glUniformMatrix4fv(0, 1, False, self.pr_matrix)
+        glUniformMatrix4fv(0, 1, MeshWidget.transpose, proj)
         glVertexPointer(2, GL_FLOAT, 0, None)
         glBindBuffer(GL_ARRAY_BUFFER, self.buffers['positions'])
         glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, None)
