@@ -61,8 +61,7 @@ void main(){
 GEOMETRY = """
 #version 330
 #define CIRCLE_SECTIONS 12
-//#define VERTICES 36
-# define VERTICES 40
+#define VERTICES 39 // (12+1) * 3
 #define PI 3.1415926
 
 layout (points) in;
