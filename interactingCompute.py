@@ -70,10 +70,12 @@ flat in float gs_mass[];
 flat in vec4 gs_velocity[];
 layout (triangle_strip, max_vertices=VERTICES) out;
 flat out float fs_charge;
+flat out vec4 fs_velocity;
 uniform float aspect;
 
 void main(){
     fs_charge = gs_charge[0];
+    fs_velocity = gs_velocity[0];
     float r =  0.002 * (log(gs_mass) + 2);
     // Central vertex
     vec4 centre = gl_in[0].gl_Position;
@@ -119,12 +121,18 @@ void main(){
 FRAGMENT = """
 #version 330
 flat in float fs_charge;
+flat in vec4 fs_velocity;
+const vec2 vecR = normalize(vec2(0. , 1));     // 12 o'clock
+const vec2 vecG = normalize(vec2(1.732, -1));  // 4 o'clock
+const vec2 vecB = normalize(vec2(-1.732, -1)); // 8 o'clock
 
 void main(){
     if (fs_charge > 0){
         gl_FragColor = vec4(1., 0., 0., 1.);
     } else if (fs_charge < 0) {
-        gl_FragColor = vec4(0., 0., 1., 1.);
+        // gl_FragColor = vec4(0., 0., 1., 1.);
+        vec2 v = normalize(vec2(fs_velocity[0], fs_velocity[1]));
+        gl_FragColor = vec4(dot(v, vecR), dot(v, vecG), dot(v, vecB), 1.);
     } else {
         gl_FragColor = vec4(0., 0., 0., 1.);
     }
