@@ -249,6 +249,9 @@ class GLPlotWidget(QGLWidget):
         if FRAC > 0:
             masses[0:N*FRAC] = 20000
             charges[0:N*FRAC] = 8
+        elif FRAC < 0:
+            masses[0:-FRAC] = 20000
+            charges[0:-FRAC] = 8
         self.attributes = np.zeros((N, 4), dtype=np.float32)
         self.attributes[:,0:2] = positions
         self.attributes[:,2] = charges
