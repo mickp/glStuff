@@ -15,16 +15,16 @@ from PyQt4 import QtCore, QtGui, QtOpenGL
 
 # Indexes into a half matrix.
 def ijtok(i, j):
-    return i - j-1 + j*NUM_NODES - j*(j+1)/2
+    return int(i - j-1 + j*NUM_NODES - j*(j+1)//2)
 
 def ktoij(k):
     N = NUM_NODES
-    j = int((2*N - 1 - np.sqrt(1 + 4*N**2 - 4*N - 8* k))/2)
-    i = j+1 + k - j*N + j*(j+1)/2
+    j = int((2*N - 1 - np.sqrt(1 + 4*N**2 - 4*N - 8* k))//2)
+    i = int(j+1 + k - j*N + j*(j+1)/2)
     return i, j
 
 try:
-    assert [ijtok(*ktoij(x)) for x in range((NUM_NODES**2-NUM_NODES)/2)] == range((NUM_NODES**2-NUM_NODES)/2)
+    assert [ijtok(*ktoij(x)) for x in range(int(NUM_NODES**2-NUM_NODES)//2)] == list(range((NUM_NODES**2-NUM_NODES)//2))
 except AssertionError:
     raise Exception("Incorrect output from ijtok or ktoij.")
 
@@ -48,7 +48,7 @@ def link_shaders(*args):
 
 
 class MeshWidget(QtOpenGL.QGLWidget):
-    useComputeShader = True;
+    useComputeShader = True
     perspective = False
     transpose = True
     def initializeGL(self):
@@ -64,17 +64,17 @@ class MeshWidget(QtOpenGL.QGLWidget):
         # random points and edges
         self.positions = np.random.random((NUM_NODES, 2)).astype(np.float32) - 0.5
         # Adjacency matrix stores L0.
-        self.adjacency = np.random.random((NUM_NODES ** 2 - NUM_NODES) / 2)
+        self.adjacency = np.random.random((NUM_NODES ** 2 - NUM_NODES) // 2)
         p_edge = 0.#1. -  (1. / NUM_NODES)
         self.adjacency[self.adjacency >= p_edge] = 1.
         self.adjacency[self.adjacency < p_edge] = 0.
         # Interaction forces
-        self.forces = np.zeros(((NUM_NODES ** 2 - NUM_NODES) / 2, 2), dtype=np.float32)
+        self.forces = np.zeros(((NUM_NODES ** 2 - NUM_NODES) // 2, 2), dtype=np.float32)
         # Indices to two points per edge.
         self.edge_indices = np.array([ktoij(k) for k in np.where(self.adjacency > 0)[0]],
                                      dtype=np.int).ravel()
         # Strains.
-        self.strains = np.zeros(((NUM_NODES ** 2 - NUM_NODES) / 2), dtype=np.float32)
+        self.strains = np.zeros(((NUM_NODES ** 2 - NUM_NODES) // 2), dtype=np.float32)
         # Lengths
         self.lengths = np.ones_like(self.strains)
         #self.lengths[range(0, len(self.lengths), 2)] = 0.5
@@ -139,7 +139,7 @@ class MeshWidget(QtOpenGL.QGLWidget):
             self.calc_force()
         elif key in (QtCore.Qt.Key_C,):
             MeshWidget.useComputeShader = not MeshWidget.useComputeShader
-            print "useComputeShader = ", MeshWidget.useComputeShader
+            print ("useComputeShader = ", MeshWidget.useComputeShader)
             glBindBuffer(GL_SHADER_STORAGE_BUFFER, self.buffers['positions'])
             if MeshWidget.useComputeShader:
                 glBufferData(GL_SHADER_STORAGE_BUFFER, self.positions.nbytes, self.positions, GL_DYNAMIC_COPY)
@@ -147,10 +147,10 @@ class MeshWidget(QtOpenGL.QGLWidget):
                 glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, self.positions.nbytes, self.positions)
         elif key in (QtCore.Qt.Key_P,):
             MeshWidget.perspective = not MeshWidget.perspective
-            print "Projection ", self.getProjection()
+            print ("Projection ", self.getProjection())
         elif key in (QtCore.Qt.Key_T,):
             MeshWidget.transpose = not MeshWidget.transpose
-            print "Transpose ", MeshWidget.transpose
+            print ("Transpose ", MeshWidget.transpose)
         else:
             handled = False
 
@@ -160,7 +160,7 @@ class MeshWidget(QtOpenGL.QGLWidget):
             event.ignore()
 
     def calc_force(self):
-        for i in xrange(len(self.edge_indices) / 2):
+        for i in xrange(len(self.edge_indices) // 2):
             index_b = self.edge_indices[2 * i + 1]
             index_a = self.edge_indices[2 * i]
             delta = self.positions[index_b] - self.positions[index_a]
@@ -219,7 +219,7 @@ class MeshWidget(QtOpenGL.QGLWidget):
             glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, self.buffers['lengths'])
             glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, self.buffers['edges'])
             glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, self.buffers['forces'])
-            glDispatchCompute(max(NUM_NODES, len(self.edge_indices)/2), 1, 1)
+            glDispatchCompute(max(NUM_NODES, len(self.edge_indices)//2), 1, 1)
             glMemoryBarrier(GL_BUFFER_UPDATE_BARRIER_BIT | GL_SHADER_STORAGE_BARRIER_BIT)
         else:
             self.calc_force()
