@@ -4,5 +4,5 @@ attribute vec3 position;
 
 void main() {
     float a = wavelength;
-    gl_Position = vec4( position, 0.5+wavelength );
+    gl_Position = vec4(position, 1.);
 }
