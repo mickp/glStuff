@@ -76,7 +76,7 @@ uniform float aspect;
 void main(){
     fs_charge = gs_charge[0];
     fs_velocity = gs_velocity[0];
-    float r =  0.002 * (log(gs_mass) + 2);
+    float r =  0.002 * (log(gs_mass[0]) + 2);
     // Central vertex
     vec4 centre = gl_in[0].gl_Position;
 
