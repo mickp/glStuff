@@ -192,7 +192,7 @@ class GLPlotWidget(QGLWidget):
             self.uMaxIterations.update(maxIter)
         elif key in (QtCore.Qt.Key_Minus,):
             if self.uMaxIterations.value < 4096:
-                maxIter = max(2, self.uMaxIterations.value / 2)
+                maxIter = max(2, self.uMaxIterations.value // 2)
             else:
                 maxIter = self.uMaxIterations.value - 1024
             self.uMaxIterations.update(maxIter)
@@ -289,7 +289,7 @@ class GLPlotWidget(QGLWidget):
         # Update the window title.
         self.parent().setWindowTitle("offset %s; zoom: %f" %
                              (self.uCenter.value, self.uZoom.value))
-
+        
 
     def resizeGL(self, width, height):
         """Called upon window resizing: reinitialize the viewport.
