@@ -294,7 +294,11 @@ class GLPlotWidget(QGLWidget):
         # clear the buffer
         gl.glClear(gl.GL_COLOR_BUFFER_BIT)
         # Run the compute phase
-        gl.glUseProgram(self.compute_program)
+        try:
+            gl.glUseProgram(self.compute_program)
+        except:
+            import sys
+            sys.exit()
         gl.glBindBufferBase(gl.GL_SHADER_STORAGE_BUFFER, 0, self.vbo)
         gl.glBindBufferBase(gl.GL_SHADER_STORAGE_BUFFER, 1, self.ssbo)
         loc = gl.glGetUniformLocation(self.compute_program, 'N')
