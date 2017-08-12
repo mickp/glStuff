@@ -76,15 +76,14 @@ class GLTalbotWidget(QGLWidget):
         vs = compile_shader(GL_VERTEX_SHADER, "glTalbot.vertex.glsl")
         fs = compile_shader(GL_FRAGMENT_SHADER, "glTalbot.fragment.glsl")
         self.shaders_program = link_shaders(vs, fs)
-        # create a Vertex Buffer Object with the specified data
+        # create a Vertex Buffer Object with two triangles over full viewport.
         pts = [-1.0, -1.0,
                 1.0, -1.0,
                -1.0,  1.0,
                 1.0, -1.0,
                 1.0,  1.0,
                -1.0,  1.0]
-        self.data = (ctypes.c_float * len(pts))(*pts)
-        self.vbo = glvbo.VBO(self.data)
+        self.vbo = glvbo.VBO( (ctypes.c_float * len(pts))(*pts) )
         # Create uniforms
         gl.glUseProgram(self.shaders_program)
         self.uniforms = self.__class__.Params()
@@ -140,7 +139,7 @@ class GLTalbotWidget(QGLWidget):
         gl.glVertexAttribPointer(0, 2, gl.GL_FLOAT, gl.GL_FALSE, 0, None)
         gl.glEnableVertexAttribArray(0)
         gl.glUseProgram(self.shaders_program)
-        gl.glDrawArrays(gl.GL_TRIANGLES, 0, len(self.data))
+        gl.glDrawArrays(gl.GL_TRIANGLES, 0, len(self.vbo.data))
 
         resLocation = gl.glGetUniformLocation(self.shaders_program, 'resolution')
         gl.glUniform2f(resLocation, self.width, self.height)       
