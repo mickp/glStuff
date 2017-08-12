@@ -91,13 +91,14 @@ class GLTalbotWidget(QGLWidget):
         self.uniforms.wavelength = Uniform('wavelength')
         self.uniforms.aperture = Uniform('aperture')
         self.uniforms.propscale = Uniform('propscale')
-        gl.glUniform1f(self.uniforms.wavelength.loc, 5e-2)
+        self.uniforms.animate = Uniform('animate')
         self.set_aperture(0.5, 2)
         self.set_propscale(1.)
         # Start redraw timer.
         self.timer = QtCore.QTimer(self)
         self.timer.timeout.connect(self.update)
         self.timer.start(10)
+        gl.glUniform1i(self.uniforms.animate.loc, 1)
 
     def set_propscale(self, value):
         gl.glUseProgram(self.shaders_program)
