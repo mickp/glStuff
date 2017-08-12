@@ -150,6 +150,8 @@ class GLTalbotWindow(QtGui.QWidget):
 
         slitSlider = QtGui.QSlider(Qt.Horizontal)
         slitSlider.valueChanged.connect(self.set_slits)
+        slitSlider.setMinimum(1)
+        slitSlider.setMaximum(32)
         self.slitLabel = QtGui.QLabel()
         apSlider = QtGui.QSlider(Qt.Horizontal)
         apSlider.valueChanged.connect(self.set_apwidth)
@@ -179,6 +181,8 @@ class GLTalbotWindow(QtGui.QWidget):
         self.setGeometry(300, 300, 300, 150)
         self.show()
         wlSlider.setValue(50)
+        slitSlider.setValue(2)
+        apSlider.setValue(49)
 
     def set_wavelength(self, position):
         wlMin = math.log10(5e-3)
@@ -189,10 +193,7 @@ class GLTalbotWindow(QtGui.QWidget):
         self.wlLabel.setText("wl: %.4f" % newWl)
 
     def set_slits(self, position):
-        sMin = 1
-        sMax = 32
-        scale = (sMax - sMin) / 99.
-        self.slits = int(sMin + scale * position)
+        self.slits = position
         self.slitLabel.setText("n: %d" % self.slits)
         self.wGl.set_aperture(self.apWidth, self.slits)
 
