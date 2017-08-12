@@ -155,12 +155,19 @@ class GLTalbotWidget(QGLWidget):
         for (pt1, pt2) in zip(self.aperture[:-1], self.aperture[1:]):
             if pt1[1] == 1 or pt2[1] == 1:
                 continue
-            if abs(pt1[0] - pt2[0]) > 2*dx:
-                continue
             gl.glBegin(gl.GL_LINES)
             gl.glVertex2f(-1, pt2[0])
             gl.glVertex2f(-1, pt1[0])
             gl.glEnd()
+        gl.glBegin(gl.GL_LINES)
+        gl.glVertex2f(-1, -1)
+        gl.glVertex2f(-1, self.aperture[0][0])
+        gl.glEnd()
+        gl.glBegin(gl.GL_LINES)
+        gl.glVertex2f(-1, self.aperture[-1][0])
+        gl.glVertex2f(-1, 1)
+        gl.glEnd()
+
 
     def resizeGL(self, width, height):
         """Update the window and viewport sizes."""
