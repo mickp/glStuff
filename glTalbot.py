@@ -91,12 +91,19 @@ class GLTalbotWidget(QGLWidget):
         self.uniforms.time = Uniform('time')
         self.uniforms.wavelength = Uniform('wavelength')
         self.uniforms.aperture = Uniform('aperture')
+        self.uniforms.propscale = Uniform('propscale')
         gl.glUniform1f(self.uniforms.wavelength.loc, 5e-2)
         self.set_aperture(0.5, 2)
+        self.set_propscale(1.)
         # Start redraw timer.
         self.timer = QtCore.QTimer(self)
         self.timer.timeout.connect(self.update)
         self.timer.start(10)
+
+    def set_propscale(self, value):
+        gl.glUseProgram(self.shaders_program)
+        gl.glUniform1f(self.uniforms.propscale.loc, value)
+        self.update()
 
     def set_aperture(self, width, slits=1):
         gl.glUseProgram(self.shaders_program)
@@ -110,6 +117,7 @@ class GLTalbotWidget(QGLWidget):
         ap = (ap_pts*(2*ctypes.c_float))(*zip(apx, apy))
         self.aperture = ap
         gl.glUniform2fv(self.uniforms.aperture.loc, ap_pts, ap)
+        self.update()
 
     def set_wavelength(self, wl):
         gl.glUseProgram(self.shaders_program)
@@ -169,12 +177,16 @@ class GLTalbotWindow(QtGui.QWidget):
 
         self.slitLabel = QtGui.QLabel()
         self.apLabel = QtGui.QLabel()
+        self.scaleLabel = QtGui.QLabel()
+
         slitSlider = QtGui.QSlider(Qt.Horizontal)
         slitSlider.setMinimum(1)
         slitSlider.setMaximum(32)
         slitSlider.valueChanged.connect(self.set_slits)
         apSlider = QtGui.QSlider(Qt.Horizontal)
         apSlider.valueChanged.connect(self.set_apwidth)
+        scaleSlider = QtGui.QSlider(Qt.Horizontal)
+        scaleSlider.valueChanged.connect(self.set_scale)
 
         # Wrap a vbox in a widget to set a fixed width.
         wControls = QtGui.QWidget()
@@ -189,6 +201,9 @@ class GLTalbotWindow(QtGui.QWidget):
         wControls.layout().addWidget(self.apLabel)
         wControls.layout().addWidget(apSlider)
         wControls.layout().addStretch(1)
+        wControls.layout().addWidget(self.scaleLabel)
+        wControls.layout().addWidget(scaleSlider)
+        wControls.layout().addStretch(1)
 
         hbox = QtGui.QHBoxLayout()
         hbox.setContentsMargins(0, 0, 0, 0)
@@ -202,6 +217,8 @@ class GLTalbotWindow(QtGui.QWidget):
         wlSlider.setValue(50)
         slitSlider.setValue(2)
         apSlider.setValue(49)
+        scaleSlider.setValue(13)
+
 
     def set_wavelength(self, position):
         wlMin = math.log10(5e-3)
@@ -223,6 +240,14 @@ class GLTalbotWindow(QtGui.QWidget):
         self.apWidth = math.pow(10, wMin+scale*position)
         self.apLabel.setText("w: %.4f" % self.apWidth)
         self.wGl.set_aperture(self.apWidth, self.slits)
+
+    def set_scale(self, position):
+        sMin = math.log10(0.5)
+        sMax = math.log10(100)
+        scale = (sMax - sMin) / 99
+        newscale = math.pow(10, sMin+scale*position)
+        self.scaleLabel.setText("scaling: %.4f" % newscale)
+        self.wGl.set_propscale(newscale)
 
 
 def main():
