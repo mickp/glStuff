@@ -99,6 +99,7 @@ class GLTalbotWidget(QGLWidget):
         self.timer.start(10)
 
     def set_aperture(self, width, slits=1):
+        gl.glUseProgram(self.shaders_program)
         ap_pts = self.uniforms.aperture.size
         apx = [-width/2 + x*width/(ap_pts-1) for x in range(ap_pts)]
         apy = ap_pts*[1]
@@ -107,10 +108,13 @@ class GLTalbotWidget(QGLWidget):
             j = 2*i-1
             apy[int(j*chunk):int((j+1)*chunk)] = int(chunk)*[0]
         ap = (ap_pts*(2*ctypes.c_float))(*zip(apx, apy))
+        self.aperture = ap
         gl.glUniform2fv(self.uniforms.aperture.loc, ap_pts, ap)
 
     def set_wavelength(self, wl):
+        gl.glUseProgram(self.shaders_program)
         gl.glUniform1f(self.uniforms.wavelength.loc, wl)
+        self.update()
 
     def paintGL(self):
         """Paint the scene."""
@@ -127,6 +131,20 @@ class GLTalbotWidget(QGLWidget):
         t = ctypes.c_float()
         gl.glGetUniformfv(self.shaders_program, self.uniforms.time.loc, t)
         gl.glUniform1f(self.uniforms.time.loc, t.value + 3.141/12)
+
+        gl.glUseProgram(0)
+        gl.glLineWidth(6)
+        gl.glColor3f(0.5, 1.0, 0.5)
+        dx = self.aperture[1][0] - self.aperture[0][0]
+        for (pt1, pt2) in zip(self.aperture[:-1], self.aperture[1:]):
+            if pt1[1] == 1 or pt2[1] == 1:
+                continue
+            if abs(pt1[0] - pt2[0]) > 2*dx:
+                continue
+            gl.glBegin(gl.GL_LINES)
+            gl.glVertex2f(-1, pt2[0])
+            gl.glVertex2f(-1, pt1[0])
+            gl.glEnd()
 
     def resizeGL(self, width, height):
         """Update the window and viewport sizes."""
