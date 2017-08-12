@@ -150,6 +150,7 @@ class GLTalbotWidget(QGLWidget):
         """Update the window and viewport sizes."""
         self.width, self.height = width, height
         gl.glViewport(0, 0, width, height)
+        self.paintGL()
         print("Viewport: %d x %d" % (width, height))
 
 
@@ -166,14 +167,14 @@ class GLTalbotWindow(QtGui.QWidget):
         wlSlider.valueChanged.connect(self.set_wavelength)
         self.wlLabel = QtGui.QLabel()
 
+        self.slitLabel = QtGui.QLabel()
+        self.apLabel = QtGui.QLabel()
         slitSlider = QtGui.QSlider(Qt.Horizontal)
-        slitSlider.valueChanged.connect(self.set_slits)
         slitSlider.setMinimum(1)
         slitSlider.setMaximum(32)
-        self.slitLabel = QtGui.QLabel()
+        slitSlider.valueChanged.connect(self.set_slits)
         apSlider = QtGui.QSlider(Qt.Horizontal)
         apSlider.valueChanged.connect(self.set_apwidth)
-        self.apLabel = QtGui.QLabel()
 
         # Wrap a vbox in a widget to set a fixed width.
         wControls = QtGui.QWidget()
