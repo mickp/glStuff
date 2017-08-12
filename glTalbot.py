@@ -68,6 +68,18 @@ class GLTalbotWidget(QGLWidget):
     class Params(object):
         pass
 
+    def mousePressEvent(self, event):
+        if self.timer.isActive():
+            self.timer.stop()
+            gl.glUseProgram(self.shaders_program)
+            gl.glUniform1i(self.uniforms.animate.loc, 0)
+            self.update()
+        else:
+            self.timer.start()
+            gl.glUseProgram(self.shaders_program)
+            gl.glUniform1i(self.uniforms.animate.loc, 1)
+
+
     def initializeGL(self):
         """Initialize OpenGL, VBOs, upload data on the GPU, etc."""
         # background color
