@@ -114,7 +114,16 @@ class GLTalbotWidget(QGLWidget):
         for i in range(1, slits):
             j = 2*i-1
             apy[int(j*chunk):int((j+1)*chunk)] = int(chunk)*[0]
-        ap = (ap_pts*(2*ctypes.c_float))(*zip(apx, apy))
+        delta = len(apx)-len(apy)
+        while delta > 0:
+            if delta % 2 == 0:
+                apy.insert(0, 0)
+                apy.append(0)
+                delta -= 2
+            else:
+                apy.append(0)
+                delta -= 1
+        ap = ((ap_pts)*(2*ctypes.c_float))(*zip(apx, apy))
         self.aperture = ap
         gl.glUniform2fv(self.uniforms.aperture.loc, ap_pts, ap)
         self.update()
