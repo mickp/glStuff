@@ -18,5 +18,9 @@ for (int i=0;i<aperture.length();i++){
     }
  }
  s /= 0.5 * aperture.length()/2;
- gl_FragColor = vec4(s, s, s/2+b, 1.);
+ if (position.x < 0.001) {
+    gl_FragColor = vec4(s, s, s/2+b, 1.);
+ } else {
+    gl_FragColor = vec4(s, s, s, 1.);
+ }
 }
