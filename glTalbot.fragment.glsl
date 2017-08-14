@@ -1,8 +1,8 @@
-uniform int animate=1;
+uniform int animate;
 uniform float time;
 uniform float wavelength;
 uniform vec2 resolution;
-uniform float propscale=1;
+uniform float propscale;
 uniform vec2 aperture[128];
 
 void main( void ) {
